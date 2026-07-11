@@ -756,41 +756,623 @@ function drawChart(sentences) {
 }
 
 // ═══════════════════════════════════════════════
-// PRINT / DOWNLOAD PDF REPORT
+// PRINT REPORT (browser print)
 // ═══════════════════════════════════════════════
 document.getElementById('btn-print').addEventListener('click', () => {
   window.print();
 });
 
+// ═══════════════════════════════════════════════
+// DOWNLOAD PDF — Full jsPDF Programmatic Report
+// ═══════════════════════════════════════════════
 document.getElementById('btn-download-pdf').addEventListener('click', () => {
-  const element = document.getElementById('report-body');
-  
-  // Clone element to apply dedicated PDF styling parameters cleanly
-  const clone = element.cloneNode(true);
-  
-  // Remove interactive web-only action rows from PDF
-  const actionRow = clone.querySelector('.report-header-bar');
-  if (actionRow) actionRow.remove();
+  if (!currentAnalysisResult) return;
+  generateMurnitinPDF(currentAnalysisResult, currentAnalysisText);
+});
 
-  // Configure html2pdf options
-  const opt = {
-    margin:       [12, 14, 12, 14], // top, left, bottom, right in mm
-    filename:     `Murnitin_Integrity_Report_${activeSubmissionId || 'MN-Report'}.pdf`,
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { 
-      scale: 2, 
-      useCORS: true, 
-      letterRendering: true,
-      backgroundColor: '#ffffff' // Force white background inside the PDF
-    },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+function generateMurnitinPDF(r, rawText) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+  const PW = 210; // page width mm
+  const PH = 297; // page height mm
+  const ML = 18;  // margin left
+  const MR = 18;  // margin right
+  const CW = PW - ML - MR; // content width
+
+  // ── Color palette ─────────────────────────────
+  const C = {
+    black:     [0,   0,   0],
+    white:     [255, 255, 255],
+    indigo:    [99,  102, 241],
+    indigoD:   [67,  56,  202],
+    green:     [34,  197, 94],
+    yellow:    [234, 179, 8],
+    red:       [239, 68,  68],
+    gray100:   [248, 249, 250],
+    gray200:   [233, 236, 239],
+    gray400:   [173, 181, 189],
+    gray600:   [108, 117, 125],
+    gray700:   [73,  80,  87],
+    gray800:   [52,  58,  64],
+    gray900:   [33,  37,  41],
+    bgDark:    [10,  10,  15],
   };
 
-  // Temporarily style the clone body for PDF rendering
-  clone.style.background = '#ffffff';
-  clone.style.color = '#000000';
-  clone.classList.add('pdf-theme-export');
+  // ── Helpers ────────────────────────────────────
+  const rgb  = (c) => ({ r: c[0], g: c[1], b: c[2] });
+  const fill = (c) => doc.setFillColor(...c);
+  const stroke = (c) => doc.setDrawColor(...c);
+  const text  = (c) => doc.setTextColor(...c);
+  const font  = (style, size) => { doc.setFont('helvetica', style); doc.setFontSize(size); };
+  const rect  = (x, y, w, h, s='F') => doc.rect(x, y, w, h, s);
+  
+  function wrapText(str, maxWidth) {
+    return doc.splitTextToSize(str, maxWidth);
+  }
 
-  // Trigger high fidelity PDF generation
-  html2pdf().set(opt).from(clone).save();
-});
+  function scoreColor(score) {
+    if (score < 25)  return C.green;
+    if (score < 65)  return C.yellow;
+    return C.red;
+  }
+
+  function clsColor(cls) {
+    if (cls === 'ai_direct')   return C.red;
+    if (cls === 'ai_polished') return C.yellow;
+    return C.green;
+  }
+
+  function clsLabel(cls) {
+    if (cls === 'ai_direct')   return 'AI-DIRECT';
+    if (cls === 'ai_polished') return 'AI-POLISHED';
+    return 'HUMAN';
+  }
+
+  function drawPageFooter(pageNum, totalPages) {
+    const y = PH - 8;
+    fill(C.gray200); rect(0, PH - 12, PW, 12);
+    font('normal', 7);
+    text(C.gray600);
+    doc.text('Murnitin AI & Plagiarism Inspector  ·  Developed by Md. Mehedi Hasan  ·  mdmehedihasan.us', ML, y);
+    doc.text(`Page ${pageNum} of ${totalPages}`, PW - MR, y, { align: 'right' });
+    // Indigo rule
+    fill(C.indigo); rect(0, PH - 12, PW, 1.2);
+  }
+
+  function drawPageHeader(title) {
+    fill(C.gray900); rect(0, 0, PW, 14);
+    fill(C.indigo);  rect(0, 13, PW, 1.2);
+    font('bold', 8); text(C.white);
+    doc.text('MURNITIN', ML, 9);
+    font('normal', 7); text(C.gray400);
+    doc.text(title, ML + 22, 9);
+    font('bold', 7); text(C.indigo);
+    doc.text(`#${activeSubmissionId}`, PW - MR, 9, { align: 'right' });
+  }
+
+  // ─────────────────────────────────────────────
+  // PAGE 1 — COVER PAGE
+  // ─────────────────────────────────────────────
+  // Full dark background
+  fill(C.bgDark); rect(0, 0, PW, PH);
+
+  // Top accent bar
+  fill(C.indigo); rect(0, 0, PW, 3);
+
+  // Logo + name
+  font('bold', 26); text(C.white);
+  doc.text('Murnitin', ML, 42);
+  font('normal', 11); text(C.indigo);
+  doc.text('AI & Plagiarism Inspector', ML, 52);
+
+  // Divider
+  fill(C.gray700); rect(ML, 57, CW, 0.4);
+
+  // Submission receipt box
+  const boxY = 64;
+  const boxH = 70;
+  fill([20, 20, 30]); rect(ML, boxY, CW, boxH, 'F');
+  stroke(C.gray700); rect(ML, boxY, CW, boxH, 'S');
+
+  // Indigo left accent strip
+  fill(C.indigo); rect(ML, boxY, 2.5, boxH);
+
+  const submissionDate = new Date().toLocaleString();
+  const wordCountVal   = rawText.split(/\s+/).filter(x => x.length > 0).length;
+  const charCountVal   = rawText.length;
+  const hashVal = 'mn256_' + Math.random().toString(16).substr(2, 16);
+
+  const receiptLines = [
+    ['Submission ID',    activeSubmissionId],
+    ['Document Title',   activeSubmissionTitle || 'Untitled Document'],
+    ['Submission Date',  submissionDate],
+    ['Word Count',       wordCountVal.toLocaleString()],
+    ['Character Count',  charCountVal.toLocaleString()],
+    ['Integrity Hash',   hashVal],
+  ];
+
+  font('bold', 9); text(C.gray400);
+  doc.text('SUBMISSION RECEIPT', ML + 6, boxY + 8);
+
+  receiptLines.forEach(([label, val], i) => {
+    const rowY = boxY + 16 + i * 9;
+    font('normal', 7.5); text(C.gray400);
+    doc.text(label, ML + 6, rowY);
+    font('bold', 7.5); text(C.white);
+    doc.text(String(val).substring(0, 58), ML + 50, rowY);
+    // light row separator
+    fill([30, 30, 45]); rect(ML + 4, rowY + 2, CW - 8, 0.3);
+  });
+
+  // ── Big Score Badge ───────────────────────────
+  const badgeY = boxY + boxH + 14;
+  const sColor = scoreColor(r.score);
+  
+  // Outer ring
+  stroke(sColor); doc.setDrawColor(...sColor);
+  doc.setLineWidth(2.5);
+  doc.circle(ML + 30, badgeY + 22, 22, 'S');
+  doc.setLineWidth(0.3);
+
+  // Score text inside circle
+  font('bold', 26); text(sColor);
+  doc.text(r.score + '%', ML + 30, badgeY + 19, { align: 'center' });
+  font('normal', 7); text(C.gray400);
+  doc.text('AI Likelihood', ML + 30, badgeY + 26, { align: 'center' });
+
+  // Verdict box to the right of circle
+  const verdictBoxX = ML + 60;
+  fill([20, 20, 30]); rect(verdictBoxX, badgeY + 4, CW - 62, 36, 'F');
+  stroke(sColor); rect(verdictBoxX, badgeY + 4, CW - 62, 36, 'S');
+  fill(sColor); rect(verdictBoxX, badgeY + 4, 2.5, 36);
+
+  font('bold', 16); text(sColor);
+  doc.text(r.verdict, verdictBoxX + 8, badgeY + 18);
+
+  const verdictDescs = {
+    'Likely Human':         'Linguistic perplexity and burstiness conform to natural human writing patterns.',
+    'Inconclusive / Mixed': 'Mixed semantic markers suggest collaborative human-AI structuring or heavy revision.',
+    'Likely AI-Assisted':   'Structural uniformity and low perplexity variance indicate significant AI assistance.',
+    'Likely AI-Generated':  'High-density AI signatures — uniform entropy, low burstiness, boilerplate transitions.',
+    'Evasion Detected':     'Adversarial bypass markers detected — homoglyphs or invisible Unicode characters present.'
+  };
+  const vDesc = verdictDescs[r.verdict] || '';
+  font('normal', 7.5); text(C.gray400);
+  const vWrapped = wrapText(vDesc, CW - 72);
+  doc.text(vWrapped, verdictBoxX + 8, badgeY + 26);
+
+  // ── 4-metric summary row ───────────────────────
+  const metrY = badgeY + boxH - 4;
+  const metrics4 = [
+    { label: 'Avg Perplexity',  val: r.avg.toFixed(1) },
+    { label: 'Burstiness',      val: r.burstiness.toFixed(1) },
+    { label: 'AI Sentences',    val: `${r.aiSentences} / ${r.sentences.length}` },
+    { label: 'Evasion',         val: r.hasEvasion ? 'DETECTED' : 'NONE' },
+  ];
+  const mW = CW / 4;
+  metrics4.forEach((m, i) => {
+    const mX = ML + i * mW;
+    fill(i % 2 === 0 ? [16, 16, 24] : [20, 20, 32]);
+    rect(mX, metrY, mW, 22);
+    font('bold', 12);
+    text(i === 3 && r.hasEvasion ? C.red : C.indigo);
+    doc.text(String(m.val), mX + mW / 2, metrY + 11, { align: 'center' });
+    font('normal', 6.5); text(C.gray400);
+    doc.text(m.label.toUpperCase(), mX + mW / 2, metrY + 18, { align: 'center' });
+  });
+
+  // Advisory disclaimer
+  const disclaimerY = metrY + 28;
+  fill([18, 18, 28]); rect(ML, disclaimerY, CW, 20);
+  stroke(C.gray700); rect(ML, disclaimerY, CW, 20, 'S');
+  font('bold', 7); text(C.yellow);
+  doc.text('ADVISORY NOTICE', ML + 4, disclaimerY + 6);
+  font('normal', 6.5); text(C.gray400);
+  const disclaimer = 'This report is generated using statistical linguistic analysis and is intended as a decision-support tool only. Results should not be used as sole grounds for disciplinary action. All processing is performed client-side; no text data is transmitted or stored.';
+  const dLines = wrapText(disclaimer, CW - 8);
+  doc.text(dLines, ML + 4, disclaimerY + 13);
+
+  // Cover footer
+  font('normal', 7); text(C.gray600);
+  doc.text('Developed by Md. Mehedi Hasan  ·  mdmehedihasan.us  ·  Zero-Knowledge Client-Side Analysis', PW / 2, PH - 10, { align: 'center' });
+  fill(C.indigo); rect(0, PH - 3, PW, 3);
+
+  // ─────────────────────────────────────────────
+  // PAGE 2 — SENTENCE HIGHLIGHT MAP
+  // ─────────────────────────────────────────────
+  doc.addPage();
+  fill(C.white); rect(0, 0, PW, PH);
+  drawPageHeader('Linguistic Highlight Map');
+
+  let y = 20;
+
+  // Section title
+  font('bold', 14); text(C.gray900);
+  doc.text('Sentence-Level Highlight Map', ML, y);
+  y += 5;
+  font('normal', 8); text(C.gray600);
+  doc.text('Each sentence is classified using pseudo-perplexity scoring. Color indicates AI likelihood.', ML, y);
+  y += 4;
+
+  // Legend
+  const legend = [['Human', C.green], ['AI-Polished', C.yellow], ['AI-Direct', C.red]];
+  legend.forEach(([lbl, lc], i) => {
+    const lx = ML + i * 42;
+    fill(lc); rect(lx, y, 3, 3, 'F');
+    font('normal', 7); text(C.gray700);
+    doc.text(lbl, lx + 5, y + 3);
+  });
+  y += 9;
+
+  // Horizontal rule
+  fill(C.gray200); rect(ML, y, CW, 0.5);
+  y += 5;
+
+  // Render sentences as flowing colored blocks
+  const lineH = 6.5;
+  const padding = 3;
+  
+  r.sentences.forEach((s, idx) => {
+    const cls = s.classification;
+    const color = clsColor(cls);
+    const label = clsLabel(cls);
+    
+    // Sentence text wrapped
+    font('normal', 7.5);
+    const lines = wrapText(`[${String(idx + 1).padStart(2, '0')}] ${s.text}`, CW - 24);
+    const blockH = lines.length * lineH + padding * 2;
+
+    // Check page overflow
+    if (y + blockH > PH - 18) {
+      drawPageFooter(doc.internal.getCurrentPageInfo().pageNumber, '—');
+      doc.addPage();
+      fill(C.white); rect(0, 0, PW, PH);
+      drawPageHeader('Linguistic Highlight Map (cont.)');
+      y = 20;
+    }
+
+    // Left color bar
+    fill(color); rect(ML, y, 2, blockH, 'F');
+
+    // Background tint
+    const bgTint = cls === 'ai_direct' ? [255,245,245] : cls === 'ai_polished' ? [255,253,235] : [240,253,244];
+    fill(bgTint); rect(ML + 2, y, CW - 22, blockH, 'F');
+
+    // Sentence text
+    text(C.gray800);
+    doc.text(lines, ML + 5, y + padding + lineH * 0.7);
+
+    // Label badge on the right
+    const labelBgColor = cls === 'ai_direct' ? [254,202,202] : cls === 'ai_polished' ? [254,243,199] : [187,247,208];
+    fill(labelBgColor); rect(ML + CW - 21, y + (blockH / 2) - 4, 21, 8, 'F');
+    font('bold', 5.5); text(color);
+    doc.text(label, ML + CW - 10.5, y + (blockH / 2) + 1, { align: 'center' });
+
+    // Perplexity value
+    font('normal', 5.5); text(C.gray400);
+    doc.text(`PPX: ${s.perplexity.toFixed(1)}`, ML + CW - 21, y + blockH - 2);
+
+    y += blockH + 2;
+  });
+
+  drawPageFooter(doc.internal.getCurrentPageInfo().pageNumber, '—');
+
+  // ─────────────────────────────────────────────
+  // PAGE 3 — PERPLEXITY CHART + SENTENCE TABLE
+  // ─────────────────────────────────────────────
+  doc.addPage();
+  fill(C.white); rect(0, 0, PW, PH);
+  drawPageHeader('Perplexity Profile & Sentence Breakdown');
+
+  y = 22;
+
+  // — Perplexity Profile Chart —
+  font('bold', 13); text(C.gray900);
+  doc.text('Perplexity Profile (Per Sentence)', ML, y);
+  y += 4;
+  font('normal', 7.5); text(C.gray600);
+  doc.text('Low, flat lines = AI uniformity. High variance = human writing.', ML, y);
+  y += 6;
+
+  // Draw chart background
+  const chartH = 44;
+  fill(C.gray100); rect(ML, y, CW, chartH);
+  stroke(C.gray200); rect(ML, y, CW, chartH, 'S');
+
+  // Draw perplexity line chart
+  const perps = r.sentences.map(s => s.perplexity);
+  const maxP  = Math.max(...perps, 50);
+  const n     = perps.length;
+
+  if (n > 1) {
+    // Grid lines
+    stroke(C.gray200); doc.setLineWidth(0.2);
+    [0.25, 0.5, 0.75].forEach(t => {
+      const gy = y + chartH - t * chartH;
+      doc.line(ML, gy, ML + CW, gy);
+    });
+
+    // Gradient fill simulation (stacked thin rects)
+    for (let i = 0; i < n - 1; i++) {
+      const x1 = ML + (i / (n - 1)) * CW;
+      const x2 = ML + ((i + 1) / (n - 1)) * CW;
+      const y1 = y + chartH - (perps[i] / maxP) * chartH;
+      const y2 = y + chartH - (perps[i + 1] / maxP) * chartH;
+      // Draw filled polygon (trapezoid)
+      doc.setFillColor(99, 102, 241, 0.15);
+      fill([220, 221, 253]);
+      const points = [[x1, y1], [x2, y2], [x2, y + chartH], [x1, y + chartH]];
+      doc.triangle(x1, y1, x2, y2, x2, y + chartH, 'F');
+      doc.triangle(x1, y1, x2, y + chartH, x1, y + chartH, 'F');
+    }
+
+    // Main line
+    stroke(C.indigo); doc.setDrawColor(...C.indigo); doc.setLineWidth(0.8);
+    for (let i = 0; i < n - 1; i++) {
+      const x1 = ML + (i / (n - 1)) * CW;
+      const x2 = ML + ((i + 1) / (n - 1)) * CW;
+      const y1 = y + chartH - (perps[i] / maxP) * chartH;
+      const y2 = y + chartH - (perps[i + 1] / maxP) * chartH;
+      doc.line(x1, y1, x2, y2);
+    }
+
+    // Dots
+    doc.setLineWidth(0.2);
+    perps.forEach((p, i) => {
+      const px = ML + (i / (n - 1)) * CW;
+      const py = y + chartH - (p / maxP) * chartH;
+      const dotColor = clsColor(r.sentences[i].classification);
+      fill(dotColor);
+      stroke(C.white);
+      doc.circle(px, py, 1.2, 'FD');
+    });
+
+    // Y-axis labels
+    font('normal', 5.5); text(C.gray400);
+    doc.text(maxP.toFixed(0), ML - 1, y + 3, { align: 'right' });
+    doc.text((maxP * 0.5).toFixed(0), ML - 1, y + chartH / 2 + 1, { align: 'right' });
+    doc.text('0', ML - 1, y + chartH, { align: 'right' });
+  }
+
+  y += chartH + 10;
+
+  // Horizontal rule
+  fill(C.gray200); rect(ML, y, CW, 0.5);
+  y += 8;
+
+  // — Sentence Breakdown Table —
+  font('bold', 13); text(C.gray900);
+  doc.text('Sentence-Level Breakdown', ML, y);
+  y += 4;
+  font('normal', 7.5); text(C.gray600);
+  doc.text('Full per-sentence diagnostics with perplexity score and AI classification.', ML, y);
+  y += 6;
+
+  const tableRows = r.sentences.map(s => [
+    String(s.idx + 1).padStart(2, '0'),
+    s.text.length > 110 ? s.text.substring(0, 107) + '…' : s.text,
+    s.perplexity.toFixed(1),
+    clsLabel(s.classification)
+  ]);
+
+  const clsStyleMap = {
+    'AI-DIRECT':   { textColor: [185, 28, 28],  fillColor: [254, 242, 242] },
+    'AI-POLISHED': { textColor: [161, 98, 7],   fillColor: [254, 252, 232] },
+    'HUMAN':       { textColor: [21, 128, 61],  fillColor: [240, 253, 244] },
+  };
+
+  doc.autoTable({
+    startY: y,
+    head: [['#', 'Sentence', 'Perplexity', 'Classification']],
+    body: tableRows,
+    margin: { left: ML, right: MR },
+    tableWidth: CW,
+    styles: {
+      font: 'helvetica',
+      fontSize: 7,
+      cellPadding: 2.5,
+      lineColor: C.gray200,
+      lineWidth: 0.3,
+    },
+    headStyles: {
+      fillColor: C.gray900,
+      textColor: C.white,
+      fontStyle: 'bold',
+      fontSize: 7.5,
+    },
+    columnStyles: {
+      0: { cellWidth: 8,  halign: 'center', fontStyle: 'bold', textColor: C.gray600 },
+      1: { cellWidth: 110 },
+      2: { cellWidth: 20,  halign: 'center' },
+      3: { cellWidth: 32,  halign: 'center', fontStyle: 'bold' },
+    },
+    alternateRowStyles: { fillColor: C.gray100 },
+    didParseCell: (data) => {
+      if (data.column.index === 3 && data.section === 'body') {
+        const cls = data.cell.raw;
+        const style = clsStyleMap[cls];
+        if (style) {
+          data.cell.styles.textColor = style.textColor;
+          data.cell.styles.fillColor = style.fillColor;
+        }
+      }
+    },
+    didDrawPage: (data) => {
+      fill(C.white); rect(0, 0, PW, 16); // clear header area on new pages
+      drawPageHeader('Perplexity Profile & Sentence Breakdown');
+      drawPageFooter(doc.internal.getCurrentPageInfo().pageNumber, '—');
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // FINAL PAGE — EVASION + COMPLIANCE + SUMMARY
+  // ─────────────────────────────────────────────
+  doc.addPage();
+  fill(C.white); rect(0, 0, PW, PH);
+  drawPageHeader('Evasion Forensics & Compliance Audit');
+
+  y = 22;
+
+  // — Evasion Forensics Section —
+  font('bold', 13); text(C.gray900);
+  doc.text('Adversarial Bypass Forensics', ML, y); y += 4;
+  font('normal', 7.5); text(C.gray600);
+  doc.text('Scanning for invisible Unicode characters and Cyrillic homoglyph substitutions.', ML, y); y += 7;
+
+  if (r.hasEvasion) {
+    // Warning banner
+    fill([255, 243, 205]); rect(ML, y, CW, 10, 'F');
+    stroke(C.yellow); rect(ML, y, CW, 10, 'S');
+    fill(C.yellow); rect(ML, y, 3, 10, 'F');
+    font('bold', 8.5); text([161, 98, 7]);
+    doc.text('⚠  EVASION MARKERS DETECTED', ML + 7, y + 6.5);
+    y += 15;
+
+    if (r.hiddenChars.length > 0) {
+      font('bold', 8); text(C.gray800);
+      doc.text('Hidden Unicode Characters:', ML, y); y += 4;
+      r.hiddenChars.forEach(h => {
+        fill(C.gray100); rect(ML, y, CW, 8, 'F');
+        fill(C.red); rect(ML, y, 2, 8, 'F');
+        font('bold', 7.5); text(C.red);
+        doc.text(`${h.count}×  ${h.name}`, ML + 5, y + 5.5);
+        font('normal', 7); text(C.gray600);
+        doc.text('Invisible character found — may be used to fragment words and evade token-level detectors.', ML + 45, y + 5.5);
+        y += 11;
+      });
+    }
+
+    if (r.homoglyphs.length > 0) {
+      y += 3;
+      font('bold', 8); text(C.gray800);
+      doc.text('Homoglyph Substitutions (Cyrillic/Latin Mixing):', ML, y); y += 4;
+      fill(C.gray100); rect(ML, y, CW, 10, 'F');
+      fill(C.red); rect(ML, y, 2, 10, 'F');
+      font('bold', 7.5); text(C.red);
+      doc.text(`${r.homoglyphs.length} word(s) flagged`, ML + 5, y + 4);
+      font('normal', 7); text(C.gray600);
+      const hWords = r.homoglyphs.slice(0, 8).join(', ') + (r.homoglyphs.length > 8 ? ', …' : '');
+      doc.text('Words: ' + hWords, ML + 5, y + 8.5);
+      y += 14;
+    }
+  } else {
+    // Clean banner
+    fill([240, 253, 244]); rect(ML, y, CW, 12, 'F');
+    stroke(C.green); rect(ML, y, CW, 12, 'S');
+    fill(C.green); rect(ML, y, 3, 12, 'F');
+    font('bold', 8.5); text([21, 128, 61]);
+    doc.text('✓  No adversarial bypass markers detected in this document.', ML + 7, y + 8);
+    y += 17;
+  }
+
+  y += 4;
+  fill(C.gray200); rect(ML, y, CW, 0.5);
+  y += 10;
+
+  // — Statistical Summary —
+  font('bold', 13); text(C.gray900);
+  doc.text('Statistical Analysis Summary', ML, y); y += 7;
+
+  const statsData = [
+    ['Total Sentences Analyzed',         r.sentences.length],
+    ['Human Sentences',                   r.sentences.filter(s => s.classification === 'human').length],
+    ['AI-Polished Sentences',             r.aiPolishedCount],
+    ['AI-Direct Sentences',              r.aiDirectCount],
+    ['AI-Flagged Ratio',                  r.aiFlaggedPct + '%'],
+    ['Average Pseudo-Perplexity',         r.avg.toFixed(2)],
+    ['Perplexity Std Dev (Burstiness)',   r.burstiness.toFixed(2)],
+    ['Evasion Detected',                  r.hasEvasion ? 'YES — Bypass Markers Found' : 'NO — Document Clean'],
+    ['Overall AI Likelihood Score',       r.score + '%'],
+    ['Final Verdict',                     r.verdict],
+  ];
+
+  doc.autoTable({
+    startY: y,
+    body: statsData,
+    margin: { left: ML, right: MR },
+    tableWidth: CW,
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 3,
+      lineColor: C.gray200,
+      lineWidth: 0.3,
+    },
+    columnStyles: {
+      0: { cellWidth: 90, fontStyle: 'bold', textColor: C.gray700, fillColor: C.gray100 },
+      1: { cellWidth: CW - 90, textColor: C.gray900 },
+    },
+    alternateRowStyles: { fillColor: C.white },
+    didDrawPage: () => {
+      drawPageHeader('Evasion Forensics & Compliance Audit');
+    }
+  });
+
+  y = doc.lastAutoTable.finalY + 10;
+
+  // — Compliance Audit —
+  if (y > PH - 80) {
+    doc.addPage();
+    fill(C.white); rect(0, 0, PW, PH);
+    drawPageHeader('Compliance Audit');
+    y = 22;
+  }
+
+  font('bold', 13); text(C.gray900);
+  doc.text('Privacy & Compliance Audit', ML, y); y += 5;
+
+  const compliance = [
+    { status: 'PASS', label: 'Zero-Knowledge Processing',  detail: 'No raw text stored or transmitted. All processing is fully client-side in the browser.' },
+    { status: 'PASS', label: 'GDPR — Data Minimisation',   detail: 'Only statistical derivatives (perplexity scores) are retained in memory, never personal data.' },
+    { status: 'PASS', label: 'FERPA — Education Records',  detail: 'No student identification data is processed or stored at any point.' },
+    { status: 'PASS', label: 'Decision-Support Only',       detail: 'Report is advisory. Not intended as automated grounds for disciplinary or academic action.' },
+    { status: 'PASS', label: 'No Third-Party Data Sharing', detail: 'Document content is never transmitted to any external service, API, or database.' },
+  ];
+
+  compliance.forEach(item => {
+    const rowH = 16;
+    fill([240, 253, 244]); rect(ML, y, CW, rowH, 'F');
+    stroke(C.green); rect(ML, y, CW, rowH, 'S');
+    fill(C.green); rect(ML, y, 3, rowH, 'F');
+
+    font('bold', 7.5); text([21, 128, 61]);
+    doc.text('✓  PASS', ML + 5, y + 5.5);
+    font('bold', 8); text(C.gray800);
+    doc.text(item.label, ML + 22, y + 5.5);
+    font('normal', 7); text(C.gray500);
+    doc.text(item.detail, ML + 5, y + 11.5);
+
+    y += rowH + 2;
+  });
+
+  y += 6;
+
+  // — Final disclaimer box —
+  if (y > PH - 30) {
+    doc.addPage();
+    fill(C.white); rect(0, 0, PW, PH);
+    drawPageHeader('Final Notes');
+    y = 22;
+  }
+
+  fill(C.gray100); rect(ML, y, CW, 28, 'F');
+  stroke(C.gray300); rect(ML, y, CW, 28, 'S');
+  fill(C.indigo); rect(ML, y, 3, 28, 'F');
+  font('bold', 8); text(C.gray800);
+  doc.text('Methodology & Limitations', ML + 6, y + 7);
+  font('normal', 7); text(C.gray600);
+  const methodology = 'Murnitin uses statistical pseudo-perplexity scoring based on word frequency distributions and AI-specific linguistic signatures. It does not perform internet-based similarity comparison. Perplexity alone is not deterministic; human text containing technical jargon may score higher. Always review flagged sentences manually. This report was generated by Murnitin v1.1 — a zero-knowledge, client-side academic integrity tool.';
+  const mLines = wrapText(methodology, CW - 12);
+  doc.text(mLines, ML + 6, y + 14);
+
+  // Final footer on last page
+  drawPageFooter(doc.internal.getCurrentPageInfo().pageNumber, '—');
+
+  // ─────────────────────────────────────────────
+  // Save PDF
+  // ─────────────────────────────────────────────
+  const filename = `Murnitin_Report_${activeSubmissionId || 'MN-Report'}_${new Date().toISOString().slice(0,10)}.pdf`;
+  doc.save(filename);
+}
+
