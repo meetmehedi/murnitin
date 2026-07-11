@@ -155,48 +155,86 @@ const SAMPLES = {
 };
 
 // ═══════════════════════════════════════════════
-// STATISTICAL ENGINE (Client-Side)
+// STATISTICAL ENGINE (Expanded Vocabulary)
 // ═══════════════════════════════════════════════
 const BASE_FREQS = {
-  "the":0.06,"be":0.04,"to":0.03,"of":0.03,"and":0.025,"a":0.022,"in":0.02,
-  "that":0.015,"have":0.012,"i":0.01,"it":0.01,"for":0.009,"not":0.008,
-  "on":0.007,"with":0.007,"he":0.006,"as":0.006,"you":0.006,"do":0.005,
-  "at":0.005,"this":0.004,"but":0.004,"his":0.004,"by":0.004,"from":0.004,
-  "they":0.0035,"we":0.0035,"say":0.003,"her":0.003,"she":0.003,"or":0.003,
-  "an":0.003,"will":0.0028,"my":0.0025,"one":0.0025,"all":0.0025,"would":0.002,
-  "there":0.002,"their":0.002,"what":0.002,"so":0.002,"up":0.0018,"out":0.0018,
-  "if":0.0018,"about":0.0016,"who":0.0015,"get":0.0015,"which":0.0015,"go":0.0015,
-  "me":0.0014,"when":0.0014,"make":0.0014,"can":0.0014,"like":0.0013,"time":0.0013,
-  "no":0.0013,"just":0.0013,"him":0.0012,"know":0.0012,"take":0.0012,"people":0.0012,
-  "into":0.0012,"year":0.0011,"your":0.0011,"good":0.0011,"some":0.0011,"could":0.001,
-  "them":0.001,"see":0.001,"other":0.001,"than":0.001,"then":0.001,"now":0.001
+  "the":0.060,"of":0.035,"and":0.028,"a":0.022,"in":0.020,"to":0.019,
+  "is":0.018,"that":0.015,"for":0.012,"it":0.011,"with":0.010,"as":0.010,
+  "are":0.009,"on":0.009,"at":0.008,"by":0.008,"an":0.008,"be":0.007,
+  "this":0.007,"from":0.007,"or":0.006,"which":0.006,"not":0.006,
+  "was":0.005,"have":0.005,"were":0.005,"they":0.004,"we":0.004,
+  "been":0.004,"has":0.004,"can":0.004,"than":0.004,"these":0.003,
+  "their":0.003,"more":0.003,"also":0.003,"into":0.003,"its":0.003,
+  "both":0.003,"may":0.003,"such":0.003,"between":0.003,"each":0.002,
+  "while":0.002,"through":0.002,"when":0.002,"one":0.002,"two":0.002,
+  "all":0.002,"if":0.002,"but":0.002,"other":0.002,"our":0.002,
+  "used":0.002,"using":0.002,"about":0.002,"after":0.002,"only":0.002,
+  "then":0.002,"up":0.002,"over":0.002,"new":0.001,"well":0.001,
+  "based":0.002,"thus":0.002,"however":0.002,"where":0.002,"will":0.002,
+  "within":0.002,"across":0.001,"without":0.001,"under":0.001,
+  "during":0.001,"different":0.001,"most":0.001,"some":0.001,"any":0.001,
+  "how":0.001,"could":0.001,"given":0.001,"since":0.001,"no":0.001,
+  "model":0.0035,"models":0.003,"data":0.003,"learning":0.003,
+  "results":0.003,"method":0.002,"methods":0.002,"approach":0.002,
+  "analysis":0.002,"study":0.002,"paper":0.002,"research":0.002,
+  "proposed":0.002,"show":0.002,"shows":0.002,"performance":0.002,
+  "training":0.002,"prediction":0.002,"features":0.002,"set":0.002,
+  "network":0.002,"deep":0.002,"machine":0.002,"neural":0.002,
+  "accuracy":0.002,"dataset":0.002,"framework":0.002,"system":0.002,
+  "algorithm":0.002,"feature":0.002,"use":0.003,"information":0.002,
+  "customer":0.001,"lifetime":0.001,"clv":0.001,"ltv":0.0008,
+  "revenue":0.001,"purchase":0.001,"churn":0.001,"retention":0.001,
+  "transaction":0.001,"market":0.001,"digital":0.001,"commerce":0.001,
+  "forecast":0.001,"forecasting":0.001,"sparsity":0.0008,"sparse":0.001,
+  "zero":0.001,"inflated":0.0008,"lognormal":0.0008,"explainable":0.001,
+  "xai":0.0008,"interpretable":0.001,"interpretability":0.0008,
+  "precision":0.001,"recall":0.001,"f1":0.0008,"auc":0.0008
 };
 
-const AI_WORDS = new Set([
+const AI_BOILERPLATE = new Set([
   "furthermore","moreover","consequently","ultimately","additionally",
-  "utilizing","testament","delve","tapestry","multifaceted","behest",
-  "pivotal","catalyst","crucial","essential","implementation","altered",
-  "constitute","navigating","reveals","structured","characterized",
-  "efficiency","organization","predictable","behaviors","systematic",
-  "renders","functional","municipal","administrations","comprehensive"
+  "nevertheless","notwithstanding","henceforth","aforementioned",
+  "multifaceted","showcases","underscores","encompasses","facilitates",
+  "leverages","streamlines","revolutionizes","transformative",
+  "groundbreaking","unprecedented","holistic","synergistic","robust",
+  "seamlessly","comprehensively","systematically","meticulously",
+  "efficiently","effectively","significantly","substantially",
+  "remarkably","notably","considerably","predominantly","consistently",
+  "delve","tapestry","testament","behest","pivotal","catalyst",
+  "nuanced","sophisticated","crucial","utmost","paramount",
+  "imperative","commendable","exemplary","multitude","myriad",
+  "plethora","realm","landscape","paradigm","cornerstone",
+  "embark","foster","leverage","harness","propel","ascertain",
+  "delineate","elucidate","underscore","encapsulate","epitomize",
+  "elucidating","delineating","encapsulating","underpinning",
+  "posits","stipulates","mandates","necessitates","obviates",
+  "potentiates","ameliorates","exacerbates","precipitates"
 ]);
 
-const HUMAN_WORDS = new Set([
+const HUMAN_MARKERS = new Set([
+  "honestly","frankly","surprisingly","unexpectedly","weirdly",
+  "oddly","interestingly","frustratingly","thankfully","luckily",
+  "unfortunately","awkwardly","admittedly","confusingly","puzzlingly",
+  "disappointingly","excitingly","unsurprisingly","hilariously",
+  "worryingly","annoyingly","reassuringly","understandably","arguably",
+  "presumably","supposedly","apparently","seemingly","evidently",
+  "strangely","notably","curiously","typically","usually","often",
+  "sometimes","rarely","seldom","occasionally","frequently",
   "yesterday","wandered","bookshop","canal","smells","decaying","overwhelmed",
   "pleasant","randomly","grabbed","dusty","canyons","sidewalk","chaos",
-  "orchestra","messy","vibrant","escape","crazy","regular","honestly",
-  "magic","frustrating","coding","typo","magical","weird","enjoying"
+  "orchestra","messy","vibrant","escape","crazy","regular","magic",
+  "coding","typo","magical","weird","enjoying"
 ]);
 
 const AI_PROB     = 0.055;
-const HUMAN_PROB  = 0.0000015;
-const OOV_PROB    = 0.0001;
+const HUMAN_PROB  = 0.00002;
+const OOV_PROB    = 0.00015;
 
 function getWordProb(word) {
-  const w = word.toLowerCase().replace(/[^a-z]/g, '');
+  const w = word.toLowerCase().replace(/[^a-z'-]/g, '');
   if (!w) return OOV_PROB;
-  if (AI_WORDS.has(w)) return AI_PROB;
-  if (HUMAN_WORDS.has(w)) return HUMAN_PROB;
+  if (AI_BOILERPLATE.has(w)) return AI_PROB;
+  if (HUMAN_MARKERS.has(w)) return HUMAN_PROB;
   return BASE_FREQS[w] || OOV_PROB;
 }
 
@@ -208,8 +246,23 @@ function sentencePerplexity(sentence) {
   return Math.min(Math.pow(2, entropy), 500);
 }
 
+function cleanPDFText(text) {
+  // Rejoin soft-hyphenated words: "predic-\ntion" -> "prediction"
+  let cleaned = text.replace(/-\s*\n\s*/g, '');
+  // Join line breaks that are mid-sentence
+  cleaned = cleaned.replace(/(?<![.!?])\n(?!\n)/g, ' ');
+  // Collapse spaces
+  cleaned = cleaned.replace(/\n{2,}/g, '\n').replace(/ {2,}/g, ' ');
+  // Remove citation brackets [1] and other academic noise
+  cleaned = cleaned.replace(/\[\d+\]/g, '');
+  cleaned = cleaned.replace(/\(\d{4}\)/g, '');
+  cleaned = cleaned.replace(/Fig\.\s*\d+/gi, '');
+  cleaned = cleaned.replace(/Table\s+\d+/gi, '');
+  return cleaned.strip ? cleaned.strip() : cleaned.trim();
+}
+
 function detectHidden(text) {
-  const hidden = {'\u200b':'Zero-Width Space','\u200c':'Zero-Width Non-Joiner','\u200d':'Zero-Width Joiner','\ufeff':'Byte-Order Mark','\u00ad':'Soft Hyphen'};
+  const hidden = {'\u200b':'Zero-Width Space','\u200c':'ZWNJ','\u200d':'ZWJ','\ufeff':'BOM','\u00ad':'Soft Hyphen'};
   const found = [];
   for (const [ch, name] of Object.entries(hidden)) {
     const count = text.split(ch).length - 1;
@@ -234,27 +287,27 @@ function detectHomoglyphs(text) {
 }
 
 function analyzeText(rawText) {
-  // Evasion detection
   const hiddenChars  = detectHidden(rawText);
   const homoglyphs   = detectHomoglyphs(rawText);
   const hasEvasion   = hiddenChars.length > 0 || homoglyphs.length > 0;
 
-  // Clean text
   let clean = rawText;
   ['\u200b','\u200c','\u200d','\ufeff','\u00ad'].forEach(c => { clean = clean.split(c).join(''); });
+  clean = cleanPDFText(clean);
 
-  // Split sentences
   const rawSents = clean.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 2);
+  const sentences = [];
+  let sentIdx = 0;
 
-  const sentences = rawSents.map((text, idx) => {
+  rawSents.forEach(text => {
+    const wordCount = text.split(/\s+/).filter(x=>x.length>0).length;
+    if (wordCount < 4) return;
     const p = sentencePerplexity(text);
-    const wordCount = text.split(/\s+/).length;
     let cls = 'human';
-    if (wordCount > 4) {
-      if (p < 14)  cls = 'ai_direct';
-      else if (p < 28) cls = 'ai_polished';
-    }
-    return { idx, text, perplexity: p, classification: cls };
+    if (p < 16)       cls = 'ai_direct';
+    else if (p < 30)  cls = 'ai_polished';
+    
+    sentences.push({ idx: sentIdx++, text, perplexity: p, classification: cls });
   });
 
   if (sentences.length === 0) return null;
@@ -264,9 +317,11 @@ function analyzeText(rawText) {
   const variance = perps.reduce((s, p) => s + Math.pow(p - avg, 2), 0) / perps.length;
   const burstiness = Math.sqrt(variance);
 
-  const aiSentences = sentences.filter(s => s.classification !== 'human').length;
+  const aiDirectCount = sentences.filter(s => s.classification === 'ai_direct').length;
+  const aiPolishedCount = sentences.filter(s => s.classification === 'ai_polished').length;
+  const aiFlaggedPct = (100 * (aiDirectCount + aiPolishedCount) / sentences.length).toFixed(1);
 
-  // Score computation
+  // Score
   let score = 0;
   if (avg < 20 && burstiness < 14) {
     score = 95 - avg * 1.8 - burstiness * 1.2;
@@ -281,14 +336,15 @@ function analyzeText(rawText) {
   // Verdict
   let verdict = '', verdictClass = '';
   if (score < 25)     { verdict = 'Likely Human';         verdictClass = 'green'; }
-  else if (score < 55) { verdict = 'Inconclusive/Mixed';  verdictClass = 'yellow'; }
+  else if (score < 55) { verdict = 'Inconclusive / Mixed';  verdictClass = 'yellow'; }
   else if (score < 80) { verdict = 'Likely AI-Assisted';  verdictClass = 'yellow'; }
   else                 { verdict = 'Likely AI-Generated';  verdictClass = 'red'; }
 
   if (hasEvasion) { verdict = 'Evasion Detected'; verdictClass = 'red'; }
 
   return {
-    score, avg, burstiness, sentences, aiSentences, hasEvasion,
+    score, avg, burstiness, sentences, aiSentences: aiDirectCount + aiPolishedCount, 
+    aiDirectCount, aiPolishedCount, aiFlaggedPct, hasEvasion,
     hiddenChars, homoglyphs, verdict, verdictClass
   };
 }
@@ -349,6 +405,8 @@ const extractStatus = document.getElementById('pdf-extract-status');
 const extractMsg    = document.getElementById('extract-msg');
 
 let extractedPDFText = '';
+let currentFileName = '';
+let currentFileSize = '';
 
 dropZone.addEventListener('click', () => pdfInput.click());
 
@@ -370,6 +428,8 @@ pdfInput.addEventListener('change', () => {
 
 clearBtn.addEventListener('click', () => {
   extractedPDFText = '';
+  currentFileName = '';
+  currentFileSize = '';
   pdfInput.value = '';
   fileInfo.classList.add('hidden');
   dropZone.classList.remove('hidden');
@@ -377,8 +437,10 @@ clearBtn.addEventListener('click', () => {
 });
 
 async function handlePDFFile(file) {
-  fileName.textContent  = file.name;
-  fileSizeEl.textContent = (file.size / 1024).toFixed(1) + ' KB';
+  currentFileName = file.name;
+  currentFileSize = (file.size / 1024).toFixed(1) + ' KB';
+  fileName.textContent  = currentFileName;
+  fileSizeEl.textContent = currentFileSize;
   dropZone.classList.add('hidden');
   fileInfo.classList.remove('hidden');
   extractStatus.classList.remove('hidden');
@@ -410,12 +472,18 @@ async function handlePDFFile(file) {
 }
 
 // ═══════════════════════════════════════════════
-// RUN INSPECTION
+// RUN INSPECTION & RECEIPT MODAL
 // ═══════════════════════════════════════════════
-const btnInspect = document.getElementById('btn-inspect');
+const btnInspect   = document.getElementById('btn-inspect');
+const receiptModal = document.getElementById('receipt-modal');
+const modalClose   = document.getElementById('btn-modal-close');
+
+let currentAnalysisResult = null;
+let currentAnalysisText   = "";
 
 btnInspect.addEventListener('click', () => {
   let text = '';
+  let origin = 'Text Editor';
 
   if (activeTab === 'pdf') {
     if (!extractedPDFText) {
@@ -424,6 +492,7 @@ btnInspect.addEventListener('click', () => {
       return;
     }
     text = extractedPDFText;
+    origin = currentFileName;
   } else {
     text = textInput.value.trim();
   }
@@ -434,19 +503,69 @@ btnInspect.addEventListener('click', () => {
   }
 
   btnInspect.disabled = true;
-  btnInspect.querySelector('span') && (btnInspect.querySelector('span').textContent = 'Analyzing…');
   btnInspect.textContent = 'Analyzing…';
 
   setTimeout(() => {
     const result = analyzeText(text);
     if (result) {
-      renderSidebar(result);
-      renderReport(result, text);
+      currentAnalysisResult = result;
+      currentAnalysisText   = text;
+      
+      // Digital Receipt Parameters
+      const submissionId   = 'MN-' + Math.floor(1000000 + Math.random() * 9000000);
+      const submissionDate = new Date().toLocaleString();
+      const wordCountVal   = text.split(/\s+/).filter(x => x.length > 0).length;
+      const charCountVal   = text.length;
+      const submissionTitle = activeTab === 'pdf' ? currentFileName.replace(/\.[^/.]+$/, "") : text.slice(0, 30) + '...';
+
+      // Update Modal
+      document.getElementById('receipt-id').textContent = submissionId;
+      document.getElementById('receipt-title').textContent = submissionTitle;
+      document.getElementById('receipt-date').textContent = submissionDate;
+      document.getElementById('receipt-words').textContent = wordCountVal;
+      document.getElementById('receipt-chars').textContent = charCountVal;
+      document.getElementById('receipt-origin').textContent = origin;
+
+      // Update Print-only cover page inputs
+      document.querySelectorAll('.print-val-id').forEach(el => el.textContent = submissionId);
+      document.querySelectorAll('.print-val-title').forEach(el => el.textContent = submissionTitle);
+      document.querySelectorAll('.print-val-date').forEach(el => el.textContent = submissionDate);
+      document.querySelectorAll('.print-val-words').forEach(el => el.textContent = wordCountVal);
+      document.querySelectorAll('.print-val-chars').forEach(el => el.textContent = charCountVal);
+      document.querySelectorAll('.print-val-hash').forEach(el => {
+        el.textContent = 'mn256_' + Math.random().toString(16).substr(2, 16);
+      });
+      
+      // Print cover page overall results
+      document.querySelector('.pr-gauge-pct').textContent = result.score + '%';
+      document.querySelector('.pr-verdict-val').textContent = result.verdict;
+      
+      let prVerdictDesc = 'Linguistic Perplexity Profile conforms to organic writing patterns.';
+      if (result.score >= 80) {
+        prVerdictDesc = 'High volume of uniform, low-entropy sentences indicates structural AI generation.';
+      } else if (result.score >= 25) {
+        prVerdictDesc = 'Mixed semantic markers indicate collaborative human-AI structuring or intense revision.';
+      }
+      if (result.hasEvasion) {
+        prVerdictDesc = 'Evasion markers detected. Homoglyphs or invisible dividers are present in text.';
+      }
+      document.querySelector('.pr-verdict-desc').textContent = prVerdictDesc;
+
+      // Trigger Modal
+      receiptModal.classList.remove('hidden');
     }
     btnInspect.disabled = false;
     btnInspect.textContent = 'Run Integrity Inspection';
-    document.getElementById('report').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 600);
+  }, 800);
+});
+
+modalClose.addEventListener('click', () => {
+  receiptModal.classList.add('hidden');
+  if (currentAnalysisResult) {
+    renderSidebar(currentAnalysisResult);
+    renderReport(currentAnalysisResult, currentAnalysisText);
+  }
+  document.getElementById('report').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 // ═══════════════════════════════════════════════
@@ -461,7 +580,7 @@ function renderSidebar(r) {
   const circumference = 314.16;
   const offset = circumference - (circumference * r.score / 100);
   gFill.style.strokeDashoffset = offset;
-  if (r.score < 30)      gFill.style.stroke = '#22c55e';
+  if (r.score < 25)      gFill.style.stroke = '#22c55e';
   else if (r.score < 65) gFill.style.stroke = '#eab308';
   else                   gFill.style.stroke = '#ef4444';
 
@@ -488,9 +607,12 @@ function renderReport(r, rawText) {
   // Timestamp
   document.getElementById('report-timestamp').textContent = new Date().toLocaleString();
 
+  // Update print headers
+  document.querySelectorAll('.ph-score').forEach(el => el.textContent = r.score + '%');
+
   // Summary Cards
   const cards = [
-    { label: 'AI Likelihood',  value: r.score + '%',                    cls: r.score < 30 ? 'green' : r.score < 65 ? 'yellow' : 'red' },
+    { label: 'AI Likelihood',  value: r.score + '%',                    cls: r.score < 25 ? 'green' : r.score < 65 ? 'yellow' : 'red' },
     { label: 'Avg Perplexity', value: r.avg.toFixed(1),                 cls: '' },
     { label: 'Burstiness',     value: r.burstiness.toFixed(1),          cls: '' },
     { label: 'Verdict',        value: r.verdict,                        cls: r.verdictClass },
