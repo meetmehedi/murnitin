@@ -261,6 +261,10 @@ function cleanPDFText(text) {
   return cleaned.strip ? cleaned.strip() : cleaned.trim();
 }
 
+// Global scope receipt cache to support PDF downloading
+let activeSubmissionId = "";
+let activeSubmissionTitle = "";
+
 function detectHidden(text) {
   const hidden = {'\u200b':'Zero-Width Space','\u200c':'ZWNJ','\u200d':'ZWJ','\ufeff':'BOM','\u00ad':'Soft Hyphen'};
   const found = [];
@@ -512,23 +516,23 @@ btnInspect.addEventListener('click', () => {
       currentAnalysisText   = text;
       
       // Digital Receipt Parameters
-      const submissionId   = 'MN-' + Math.floor(1000000 + Math.random() * 9000000);
+      activeSubmissionId   = 'MN-' + Math.floor(1000000 + Math.random() * 9000000);
       const submissionDate = new Date().toLocaleString();
       const wordCountVal   = text.split(/\s+/).filter(x => x.length > 0).length;
       const charCountVal   = text.length;
-      const submissionTitle = activeTab === 'pdf' ? currentFileName.replace(/\.[^/.]+$/, "") : text.slice(0, 30) + '...';
+      activeSubmissionTitle = activeTab === 'pdf' ? currentFileName.replace(/\.[^/.]+$/, "") : text.slice(0, 30) + '...';
 
       // Update Modal
-      document.getElementById('receipt-id').textContent = submissionId;
-      document.getElementById('receipt-title').textContent = submissionTitle;
+      document.getElementById('receipt-id').textContent = activeSubmissionId;
+      document.getElementById('receipt-title').textContent = activeSubmissionTitle;
       document.getElementById('receipt-date').textContent = submissionDate;
       document.getElementById('receipt-words').textContent = wordCountVal;
       document.getElementById('receipt-chars').textContent = charCountVal;
       document.getElementById('receipt-origin').textContent = origin;
 
       // Update Print-only cover page inputs
-      document.querySelectorAll('.print-val-id').forEach(el => el.textContent = submissionId);
-      document.querySelectorAll('.print-val-title').forEach(el => el.textContent = submissionTitle);
+      document.querySelectorAll('.print-val-id').forEach(el => el.textContent = activeSubmissionId);
+      document.querySelectorAll('.print-val-title').forEach(el => el.textContent = activeSubmissionTitle);
       document.querySelectorAll('.print-val-date').forEach(el => el.textContent = submissionDate);
       document.querySelectorAll('.print-val-words').forEach(el => el.textContent = wordCountVal);
       document.querySelectorAll('.print-val-chars').forEach(el => el.textContent = charCountVal);
@@ -752,8 +756,41 @@ function drawChart(sentences) {
 }
 
 // ═══════════════════════════════════════════════
-// PRINT / SAVE PDF
+// PRINT / DOWNLOAD PDF REPORT
 // ═══════════════════════════════════════════════
 document.getElementById('btn-print').addEventListener('click', () => {
   window.print();
+});
+
+document.getElementById('btn-download-pdf').addEventListener('click', () => {
+  const element = document.getElementById('report-body');
+  
+  // Clone element to apply dedicated PDF styling parameters cleanly
+  const clone = element.cloneNode(true);
+  
+  // Remove interactive web-only action rows from PDF
+  const actionRow = clone.querySelector('.report-header-bar');
+  if (actionRow) actionRow.remove();
+
+  // Configure html2pdf options
+  const opt = {
+    margin:       [12, 14, 12, 14], // top, left, bottom, right in mm
+    filename:     `Murnitin_Integrity_Report_${activeSubmissionId || 'MN-Report'}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { 
+      scale: 2, 
+      useCORS: true, 
+      letterRendering: true,
+      backgroundColor: '#ffffff' // Force white background inside the PDF
+    },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  // Temporarily style the clone body for PDF rendering
+  clone.style.background = '#ffffff';
+  clone.style.color = '#000000';
+  clone.classList.add('pdf-theme-export');
+
+  // Trigger high fidelity PDF generation
+  html2pdf().set(opt).from(clone).save();
 });

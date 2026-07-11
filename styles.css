@@ -1199,9 +1199,135 @@ td.class-ai { color: var(--red); font-family: var(--mono); font-size: 11px; }
 }
 
 /* ══════════════════════════════════════════
-   PRINTING SYSTEM & LAYOUT
+   PRINTING SYSTEM & LAYOUT (Revised)
 ══════════════════════════════════════════ */
 .print-only { display: none !important; }
+
+/* Styles when pdf-theme-export is applied dynamically */
+.pdf-theme-export {
+  background: #ffffff !important;
+  color: #000000 !important;
+  padding: 10px !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 790px !important; /* Perfect fit for A4 width canvas compilation */
+}
+
+.pdf-theme-export * {
+  color: #111111 !important;
+  border-color: #e5e7eb !important;
+}
+
+.pdf-theme-export .print-cover-page {
+  display: block !important;
+  width: 100% !important;
+  height: 980px !important; /* Forces A4 pageheight wrapper */
+  padding-top: 60px !important;
+}
+
+.pdf-theme-export .print-receipt-container {
+  border: 1px solid #111111 !important;
+  padding: 30px !important;
+  background: #ffffff !important;
+}
+
+.pdf-theme-export .print-receipt-header h1 {
+  color: #000000 !important;
+  font-size: 22pt !important;
+  font-weight: 800 !important;
+  border-bottom: 1.5px solid #000000 !important;
+  padding-bottom: 15px !important;
+}
+
+.pdf-theme-export .pr-line {
+  border-bottom: 1px dashed #cccccc !important;
+  padding-bottom: 5px !important;
+  margin-bottom: 8px !important;
+  font-size: 11pt !important;
+}
+
+.pdf-theme-export .print-receipt-footer {
+  border-top: 1.5px solid #000000 !important;
+  padding-top: 20px !important;
+  margin-top: 20px !important;
+}
+
+.pdf-theme-export .pr-gauge-box {
+  border: 1.5px solid #000000 !important;
+  background: #fdfdfd !important;
+}
+
+.pdf-theme-export .print-header {
+  display: flex !important;
+  border-bottom: 2px solid #000000 !important;
+  padding-bottom: 10px !important;
+  margin-top: 30px !important;
+  margin-bottom: 20px !important;
+}
+
+.pdf-theme-export .summary-cards {
+  grid-template-columns: repeat(4, 1fr) !important;
+  border: 1px solid #cccccc !important;
+}
+
+.pdf-theme-export .sum-card {
+  background: #fafafa !important;
+  border-right: 1px solid #eeeeee !important;
+}
+
+.pdf-theme-export .sum-value {
+  font-size: 22px !important;
+}
+
+.pdf-theme-export .sum-value.green { color: #16a34a !important; }
+.pdf-theme-export .sum-value.yellow { color: #d97706 !important; }
+.pdf-theme-export .sum-value.red { color: #dc2626 !important; }
+
+.pdf-theme-export .highlight-map {
+  background: #ffffff !important;
+  border: 1px solid #dddddd !important;
+  line-height: 1.8 !important;
+  font-size: 11pt !important;
+}
+
+.pdf-theme-export .hl-sent.human { border-bottom-color: rgba(34, 197, 94, 0.4) !important; }
+.pdf-theme-export .hl-sent.ai_polished { background: rgba(234, 179, 8, 0.08) !important; border-bottom-color: rgba(234, 179, 8, 0.6) !important; }
+.pdf-theme-export .hl-sent.ai_direct { background: rgba(239, 68, 68, 0.12) !important; border-bottom-color: rgba(239, 68, 68, 0.8) !important; }
+.pdf-theme-export .hl-sent.bypass { background: rgba(239, 68, 68, 0.25) !important; border-bottom-color: #ef4444 !important; }
+
+.pdf-theme-export table {
+  border: 1px solid #cccccc !important;
+}
+.pdf-theme-export thead tr {
+  background: #f3f4f6 !important;
+}
+.pdf-theme-export th {
+  color: #4b5563 !important;
+}
+.pdf-theme-export td {
+  color: #374151 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+.pdf-theme-export td.class-human { color: #16a34a !important; }
+.pdf-theme-export td.class-polished { color: #d97706 !important; }
+.pdf-theme-export td.class-ai { color: #dc2626 !important; }
+
+.pdf-theme-export .compliance-grid {
+  grid-template-columns: 1fr 1fr !important;
+}
+.pdf-theme-export .compliance-item {
+  background: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+}
+.pdf-theme-export .ci-icon {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #16a34a !important;
+}
+
+/* Pagebreaks inside exported PDF */
+.html2pdf__page-break {
+  page-break-before: always !important;
+}
 
 @media print {
   /* Reset document for print layout */
