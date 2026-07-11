@@ -97,6 +97,7 @@ def clean_pdf_text(text):
 # ─────────────────────────────────────────────────────────────────────────────
 class MurnitinHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
+        global PIPE_AHMED, PIPE_FAKESPOT, PIPE_OPENAI
         if self.path == '/api/analyze':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
