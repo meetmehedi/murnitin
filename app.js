@@ -478,6 +478,8 @@ async function handlePDFFile(file) {
 // ═══════════════════════════════════════════════
 // RUN INSPECTION & RECEIPT MODAL
 // ═══════════════════════════════════════════════
+// RUN INSPECTION — ML Server first, heuristic fallback
+// ═══════════════════════════════════════════════
 const btnInspect   = document.getElementById('btn-inspect');
 const receiptModal = document.getElementById('receipt-modal');
 const modalClose   = document.getElementById('btn-modal-close');
@@ -485,7 +487,77 @@ const modalClose   = document.getElementById('btn-modal-close');
 let currentAnalysisResult = null;
 let currentAnalysisText   = "";
 
-btnInspect.addEventListener('click', () => {
+// Engine indicator: shows whether ML or heuristic was used
+function setEngineIndicator(mode) {
+  let el = document.getElementById('engine-indicator');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'engine-indicator';
+    el.style.cssText = `
+      position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+      padding: 8px 14px; border-radius: 20px; font-size: 11px;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: 0.03em;
+      transition: all 0.4s ease; pointer-events: none;
+    `;
+    document.body.appendChild(el);
+  }
+  if (mode === 'ml') {
+    el.textContent = '🤖 ML Model (RoBERTa) — High Accuracy';
+    el.style.background = 'rgba(99,102,241,0.15)';
+    el.style.border = '1px solid rgba(99,102,241,0.4)';
+    el.style.color = '#a5b4fc';
+  } else {
+    el.textContent = '⚡ Statistical Heuristic — Start ML server for accuracy';
+    el.style.background = 'rgba(234,179,8,0.15)';
+    el.style.border = '1px solid rgba(234,179,8,0.4)';
+    el.style.color = '#fde047';
+  }
+  setTimeout(() => { el.style.opacity = '0'; }, 6000);
+  el.style.opacity = '1';
+}
+
+function applyReceiptAndModal(result, text, origin) {
+  currentAnalysisResult = result;
+  currentAnalysisText   = text;
+
+  activeSubmissionId   = 'MN-' + Math.floor(1000000 + Math.random() * 9000000);
+  const submissionDate = new Date().toLocaleString();
+  const wordCountVal   = text.split(/\s+/).filter(x => x.length > 0).length;
+  const charCountVal   = text.length;
+  activeSubmissionTitle = activeTab === 'pdf'
+    ? currentFileName.replace(/\.[^/.]+$/, "")
+    : text.slice(0, 30) + '...';
+
+  document.getElementById('receipt-id').textContent     = activeSubmissionId;
+  document.getElementById('receipt-title').textContent  = activeSubmissionTitle;
+  document.getElementById('receipt-date').textContent   = submissionDate;
+  document.getElementById('receipt-words').textContent  = wordCountVal;
+  document.getElementById('receipt-chars').textContent  = charCountVal;
+  document.getElementById('receipt-origin').textContent = origin;
+
+  document.querySelectorAll('.print-val-id').forEach(el => el.textContent = activeSubmissionId);
+  document.querySelectorAll('.print-val-title').forEach(el => el.textContent = activeSubmissionTitle);
+  document.querySelectorAll('.print-val-date').forEach(el => el.textContent = submissionDate);
+  document.querySelectorAll('.print-val-words').forEach(el => el.textContent = wordCountVal);
+  document.querySelectorAll('.print-val-chars').forEach(el => el.textContent = charCountVal);
+  document.querySelectorAll('.print-val-hash').forEach(el => {
+    el.textContent = 'mn256_' + Math.random().toString(16).substr(2, 16);
+  });
+
+  document.querySelector('.pr-gauge-pct').textContent   = result.score + '%';
+  document.querySelector('.pr-verdict-val').textContent = result.verdict;
+
+  let prVerdictDesc = 'Linguistic profile conforms to organic human writing patterns.';
+  if (result.score >= 80)       prVerdictDesc = 'High-density AI signatures detected — uniform entropy and boilerplate transitions.';
+  else if (result.score >= 55)  prVerdictDesc = 'Significant AI-assistance indicators found in sentence structure and vocabulary.';
+  else if (result.score >= 25)  prVerdictDesc = 'Mixed signals — possible human-AI collaborative authoring or heavy editing.';
+  if (result.hasEvasion)        prVerdictDesc = 'Adversarial bypass markers found — homoglyphs or invisible Unicode characters present.';
+  document.querySelector('.pr-verdict-desc').textContent = prVerdictDesc;
+
+  receiptModal.classList.remove('hidden');
+}
+
+btnInspect.addEventListener('click', async () => {
   let text = '';
   let origin = 'Text Editor';
 
@@ -507,60 +579,53 @@ btnInspect.addEventListener('click', () => {
   }
 
   btnInspect.disabled = true;
-  btnInspect.textContent = 'Analyzing…';
+  btnInspect.textContent = '🔬 Analyzing with ML Model…';
 
-  setTimeout(() => {
+  try {
+    // ── Try ML server first (RoBERTa model, same port) ──────────────────────
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) throw new Error(`Server error ${response.status}`);
+    const result = await response.json();
+
+    if (result.error) throw new Error(result.error);
+
+    // Server returns verdict without verdictClass — add it
+    if (!result.verdictClass) {
+      result.verdictClass = result.score < 25 ? 'green' : result.score < 80 ? 'yellow' : 'red';
+    }
+
+    setEngineIndicator('ml');
+    applyReceiptAndModal(result, text, origin);
+
+  } catch (err) {
+    // ── Fallback to client-side heuristic ───────────────────────────────────
+    const isOffline = err.name === 'AbortError' || err.message.includes('fetch') || err.message.includes('Failed');
+    if (isOffline) {
+      console.warn('ML server unreachable — using statistical heuristic. Start murnitin_server.py for accurate results.');
+    } else {
+      console.warn('ML server error:', err.message, '— falling back to heuristic.');
+    }
+
+    setEngineIndicator('heuristic');
+
     const result = analyzeText(text);
     if (result) {
-      currentAnalysisResult = result;
-      currentAnalysisText   = text;
-      
-      // Digital Receipt Parameters
-      activeSubmissionId   = 'MN-' + Math.floor(1000000 + Math.random() * 9000000);
-      const submissionDate = new Date().toLocaleString();
-      const wordCountVal   = text.split(/\s+/).filter(x => x.length > 0).length;
-      const charCountVal   = text.length;
-      activeSubmissionTitle = activeTab === 'pdf' ? currentFileName.replace(/\.[^/.]+$/, "") : text.slice(0, 30) + '...';
-
-      // Update Modal
-      document.getElementById('receipt-id').textContent = activeSubmissionId;
-      document.getElementById('receipt-title').textContent = activeSubmissionTitle;
-      document.getElementById('receipt-date').textContent = submissionDate;
-      document.getElementById('receipt-words').textContent = wordCountVal;
-      document.getElementById('receipt-chars').textContent = charCountVal;
-      document.getElementById('receipt-origin').textContent = origin;
-
-      // Update Print-only cover page inputs
-      document.querySelectorAll('.print-val-id').forEach(el => el.textContent = activeSubmissionId);
-      document.querySelectorAll('.print-val-title').forEach(el => el.textContent = activeSubmissionTitle);
-      document.querySelectorAll('.print-val-date').forEach(el => el.textContent = submissionDate);
-      document.querySelectorAll('.print-val-words').forEach(el => el.textContent = wordCountVal);
-      document.querySelectorAll('.print-val-chars').forEach(el => el.textContent = charCountVal);
-      document.querySelectorAll('.print-val-hash').forEach(el => {
-        el.textContent = 'mn256_' + Math.random().toString(16).substr(2, 16);
-      });
-      
-      // Print cover page overall results
-      document.querySelector('.pr-gauge-pct').textContent = result.score + '%';
-      document.querySelector('.pr-verdict-val').textContent = result.verdict;
-      
-      let prVerdictDesc = 'Linguistic Perplexity Profile conforms to organic writing patterns.';
-      if (result.score >= 80) {
-        prVerdictDesc = 'High volume of uniform, low-entropy sentences indicates structural AI generation.';
-      } else if (result.score >= 25) {
-        prVerdictDesc = 'Mixed semantic markers indicate collaborative human-AI structuring or intense revision.';
-      }
-      if (result.hasEvasion) {
-        prVerdictDesc = 'Evasion markers detected. Homoglyphs or invisible dividers are present in text.';
-      }
-      document.querySelector('.pr-verdict-desc').textContent = prVerdictDesc;
-
-      // Trigger Modal
-      receiptModal.classList.remove('hidden');
+      applyReceiptAndModal(result, text, origin);
     }
-    btnInspect.disabled = false;
-    btnInspect.textContent = 'Run Integrity Inspection';
-  }, 800);
+  }
+
+  btnInspect.disabled = false;
+  btnInspect.textContent = 'Run Integrity Inspection';
 });
 
 modalClose.addEventListener('click', () => {
