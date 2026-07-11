@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Murnitin — Next-Generation Writing Inspector</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="logo-text">Murnitin</span>
+                <span class="badge">v1.0 Beta</span>
+            </div>
+            <div class="tagline">Next-Generation Explainable Writing Inspector</div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Panel: Input & Controls -->
+            <section class="panel editor-panel">
+                <div class="panel-header">
+                    <h2>Document Inspector</h2>
+                    <span class="panel-subtitle">Paste text to run statistical & typographical audits</span>
+                </div>
+                
+                <!-- Sample Selectors -->
+                <div class="samples-container">
+                    <span class="sample-label">Try a Sample:</span>
+                    <div class="sample-buttons">
+                        <button type="button" class="btn-sample active" data-sample="human">Native Essay</button>
+                        <button type="button" class="btn-sample" data-sample="ai">AI Generated</button>
+                        <button type="button" class="btn-sample" data-sample="evasion">Adversarial Bypass</button>
+                        <button type="button" class="btn-sample" data-sample="hybrid">Hybrid (Mixed)</button>
+                    </div>
+                </div>
+
+                <div class="editor-workspace">
+                    <textarea id="document-textarea" placeholder="Paste student work here... (minimum 50 words recommended for accurate metrics)"></textarea>
+                    <div class="editor-footer">
+                        <span id="char-count">0 characters</span>
+                        <span id="word-count">0 words</span>
+                    </div>
+                </div>
+
+                <div class="action-row">
+                    <button type="button" id="btn-inspect" class="btn-primary">
+                        <span>Inspect Document</span>
+                        <div class="btn-glow"></div>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Right Panel: Diagnostics & Explainable AI -->
+            <section class="panel results-panel">
+                <div class="panel-header">
+                    <h2>Integrity & Style Metrics</h2>
+                    <span class="panel-subtitle">Multi-dimensional analysis output</span>
+                </div>
+
+                <!-- Analysis Summary Loader / Empty State -->
+                <div id="results-empty" class="results-state">
+                    <div class="pulse-icon">🔍</div>
+                    <p>Enter text and click <strong>Inspect Document</strong> to view diagnostics.</p>
+                </div>
+
+                <!-- Active Analysis Results -->
+                <div id="results-active" class="results-state hidden">
+                    
+                    <!-- Score Meter Row -->
+                    <div class="score-grid">
+                        <div class="score-card main-score">
+                            <div class="gauge-container">
+                                <svg class="gauge" viewBox="0 0 100 100">
+                                    <circle class="gauge-track" cx="50" cy="50" r="40"></circle>
+                                    <circle id="gauge-fill" class="gauge-fill" cx="50" cy="50" r="40"></circle>
+                                </svg>
+                                <div class="gauge-labels">
+                                    <span id="score-percentage" class="score-val">0%</span>
+                                    <span class="score-lbl">AI Likelihood</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stats-subgrid">
+                            <div class="score-card">
+                                <span class="stat-lbl">Perplexity</span>
+                                <span id="stat-perplexity" class="stat-val">0.0</span>
+                                <span class="stat-desc">Low perplexity indicates formulaic LLM vocabulary.</span>
+                            </div>
+                            <div class="score-card">
+                                <span class="stat-lbl">Burstiness</span>
+                                <span id="stat-burstiness" class="stat-val">0.0</span>
+                                <span class="stat-desc">Low burstiness indicates robotic, uniform sentence patterns.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Evasion Alerts (If any) -->
+                    <div id="evasion-box" class="evasion-alert hidden">
+                        <div class="alert-icon">⚠️</div>
+                        <div class="alert-content">
+                            <h3>Adversarial Bypass Detected</h3>
+                            <p id="evasion-text">Cyrillic homoglyphs or hidden characters used to evade standard checkers.</p>
+                        </div>
+                    </div>
+
+                    <!-- Explainable Highlighting Panel -->
+                    <div class="results-section">
+                        <h3>Linguistic Highlight Map</h3>
+                        <p class="section-desc">Click sentences below to view local perplexity metrics.</p>
+                        <div id="sentence-highlights" class="highlight-container"></div>
+                        <div class="legend">
+                            <span class="legend-item"><span class="color-dot human"></span> Human</span>
+                            <span class="legend-item"><span class="color-dot polished"></span> AI-Polished</span>
+                            <span class="legend-item"><span class="color-dot ai"></span> AI-Direct</span>
+                            <span class="legend-item"><span class="color-dot bypass"></span> Evasion Trick</span>
+                        </div>
+                    </div>
+
+                    <!-- Typing Timeline Slider (Murnitin Original Feature) -->
+                    <div class="results-section">
+                        <h3>Writing Process Inspector</h3>
+                        <p class="section-desc">Reconstruct submission draft timeline from edit history metadata.</p>
+                        <div class="timeline-widget">
+                            <div class="timeline-controls">
+                                <button type="button" id="btn-play-timeline" class="btn-play">▶ Play Draft History</button>
+                                <span id="timeline-timestamp" class="timestamp">02:14:00 elapsed</span>
+                            </div>
+                            <input type="range" id="timeline-slider" min="0" max="100" value="0">
+                            <div class="timeline-visualization">
+                                <div class="timeline-event copy-paste" style="left: 45%;">Copy-paste (AI Block)</div>
+                                <div class="timeline-event active-typing" style="left: 70%;">Steady Human Typing</div>
+                            </div>
+                            <div id="timeline-status" class="timeline-report">
+                                Status: **Awaiting timeline playback...**
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Policy & Compliance Sandbox -->
+                    <div class="results-section">
+                        <h3>Privacy & Compliance Sandbox</h3>
+                        <p class="section-desc">Check configuration against regional education and data laws.</p>
+                        <div class="compliance-toggles">
+                            <label class="toggle-container">
+                                <input type="checkbox" id="compliance-ferpa" checked>
+                                <span class="checkmark"></span>
+                                <span class="toggle-lbl">FERPA compliance active (School Official model)</span>
+                            </label>
+                            <label class="toggle-container">
+                                <input type="checkbox" id="compliance-gdpr" checked>
+                                <span class="checkmark"></span>
+                                <span class="toggle-lbl">GDPR student opt-out and object paths enabled</span>
+                            </label>
+                            <label class="toggle-container">
+                                <input type="checkbox" id="compliance-zero-knowledge" checked>
+                                <span class="checkmark"></span>
+                                <span class="toggle-lbl">Zero-Knowledge cryptographic database storing hashes only</span>
+                            </label>
+                        </div>
+                        <div id="compliance-report" class="compliance-status-box">
+                            All compliance checks pass.
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
