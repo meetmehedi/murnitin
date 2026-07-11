@@ -10,21 +10,35 @@ import os
 PORT = 8000
 
 # ─────────────────────────────────────────────────────────────────────────────
-# LAZY-LOAD HUGGING FACE MODEL
+# LAZY-LOAD HUGGING FACE ENSEMBLE MODELS
 # ─────────────────────────────────────────────────────────────────────────────
-DETECTOR = None
+PIPE_AHMED = None
+PIPE_FAKESPOT = None
+PIPE_OPENAI = None
+
 try:
-    print("Loading Hugging Face AI Detector model ('Hello-SimpleAI/chatgpt-detector-roberta')...")
+    print("Loading Hugging Face AI Detector Ensemble Models...")
     from transformers import pipeline
-    # This will load the model from cache if already downloaded, otherwise fetch it.
-    DETECTOR = pipeline("text-classification", model="Hello-SimpleAI/chatgpt-detector-roberta")
-    print("✓ AI Detector Model loaded successfully!")
+    
+    # 1. ahmediqbal model (aggressive AI classification)
+    PIPE_AHMED = pipeline("text-classification", model="ahmediqbal/ai-text-detector-model")
+    print("✓ Model 1/3 (ahmediqbal) loaded successfully!")
+    
+    # 2. fakespot-ai model (balanced classification)
+    PIPE_FAKESPOT = pipeline("text-classification", model="fakespot-ai/roberta-base-ai-text-detection-v1")
+    print("✓ Model 2/3 (fakespot) loaded successfully!")
+    
+    # 3. OpenAI detector model (conservative classification)
+    PIPE_OPENAI = pipeline("text-classification", model="roberta-base-openai-detector")
+    print("✓ Model 3/3 (openai-detector) loaded successfully!")
+    
+    print("✓ Ensemble Engine fully initialized!")
 except Exception as e:
-    print("⚠ Could not load transformers pipeline. Falling back to statistical heuristics.")
+    print("⚠ Could not load ensemble transformers. Falling back to statistical heuristics.")
     print("Error details:", e)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BASE STATISTICAL ENGINE & VOCABULARY (Fallback / Perplexity Chart)
+# BASE STATISTICAL ENGINE & VOCABULARY (For Perplexity Chart / Fallback)
 # ─────────────────────────────────────────────────────────────────────────────
 BASE_FREQS = {
     "the":0.060,"of":0.035,"and":0.028,"a":0.022,"in":0.020,"to":0.019,
@@ -123,36 +137,38 @@ class MurnitinHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': 'No scorable sentences found.'}).encode('utf-8'))
                 return
 
-            # Classify sentences
             sent_results = []
             ai_direct_count = 0
             ai_polished_count = 0
 
-            # Run model if available
-            if DETECTOR:
+            # Ensemble classification if models loaded successfully
+            if PIPE_AHMED and PIPE_FAKESPOT and PIPE_OPENAI:
                 try:
-                    # Run batch classification on sentences
-                    predictions = DETECTOR(sentences)
+                    # Run predictions
+                    preds_ahmed = PIPE_AHMED(sentences)
+                    preds_fakespot = PIPE_FAKESPOT(sentences)
+                    preds_openai = PIPE_OPENAI(sentences)
                     
-                    for i, (s, pred) in enumerate(zip(sentences, predictions)):
-                        # Model output: Label (ChatGPT/Human), Score (0.0 - 1.0)
-                        label = pred['label']
-                        score = pred['score']
-                        p_score = sentence_perplexity(s) # Maintain perplexity mapping for chart
+                    for i, (s, p_ahmed, p_fakespot, p_openai) in enumerate(zip(sentences, preds_ahmed, preds_fakespot, preds_openai)):
+                        # Score mappings
+                        score_ahmed = p_ahmed['score'] if p_ahmed['label'] == 'AI' else (1.0 - p_ahmed['score'])
+                        score_fakespot = p_fakespot['score'] if 'label_1' in p_fakespot['label'].upper() else (1.0 - p_fakespot['score'])
+                        score_openai = p_openai['score'] if p_openai['label'] == 'Fake' else (1.0 - p_openai['score'])
+                        
+                        # Weighted combined score
+                        combined = score_ahmed * 0.50 + score_fakespot * 0.35 + score_openai * 0.15
                         
                         cls = 'human'
-                        if label == 'ChatGPT':
-                            if score > 0.70:
-                                cls = 'ai_direct'
-                                ai_direct_count += 1
-                            else:
-                                cls = 'ai_polished'
-                                ai_polished_count += 1
-                        else: # label == 'Human'
-                            if score < 0.75: # Low confidence human prediction = polished
-                                cls = 'ai_polished'
-                                ai_polished_count += 1
-                                
+                        if combined > 0.60:
+                            cls = 'ai_direct'
+                            ai_direct_count += 1
+                        elif combined > 0.30:
+                            cls = 'ai_polished'
+                            ai_polished_count += 1
+                            
+                        # Perplexity values for chart mapping
+                        p_score = sentence_perplexity(s)
+                        
                         sent_results.append({
                             'idx': i,
                             'text': s,
@@ -161,19 +177,10 @@ class MurnitinHandler(http.server.SimpleHTTPRequestHandler):
                         })
                 except Exception as e:
                     print("⚠ Model inference failed. Falling back to statistical scoring:", e)
-                    # Fallback to local statistical engine
-                    for i, s in enumerate(sentences):
-                        p = sentence_perplexity(s)
-                        cls = 'human'
-                        if p < 16:
-                            cls = 'ai_direct'
-                            ai_direct_count += 1
-                        elif p < 30:
-                            cls = 'ai_polished'
-                            ai_polished_count += 1
-                        sent_results.append({'idx': i, 'text': s, 'perplexity': round(p, 2), 'classification': cls})
-            else:
-                # Local statistical engine only
+                    PIPE_AHMED = None # Force fallback on subsequent calls if crash
+            
+            # Fallback to local statistical engine if models not available/crashed
+            if not sent_results:
                 for i, s in enumerate(sentences):
                     p = sentence_perplexity(s)
                     cls = 'human'
@@ -185,22 +192,21 @@ class MurnitinHandler(http.server.SimpleHTTPRequestHandler):
                         ai_polished_count += 1
                     sent_results.append({'idx': i, 'text': s, 'perplexity': round(p, 2), 'classification': cls})
 
-            # Calculate metrics
+            # Calculate perplexity metrics
             perps = [r['perplexity'] for r in sent_results]
             avg_perplexity = sum(perps) / len(perps)
             variance = sum((p - avg_perplexity) ** 2 for p in perps) / len(perps)
             burstiness = math.sqrt(variance)
 
-            # Compute AI Likelihood
-            ai_flagged_count = ai_direct_count + ai_polished_count
-            ai_flagged_pct = (100 * ai_flagged_count) / len(sentences)
+            # Calibrated AI Likelihood calculation
+            total_sentences = len(sentences)
+            # direct = 1.0 weight, polished = 0.5 weight
+            calibrated_score = ((ai_direct_count * 1.0 + ai_polished_count * 0.5) / total_sentences) * 100
             
-            # Map model-flagged percentage to final score
-            score = ai_flagged_pct
             if has_evasion:
-                score = max(score, 85.0)
+                calibrated_score = max(calibrated_score, 85.0)
             
-            score = round(max(0.0, min(100.0, score)))
+            score = round(max(0.0, min(100.0, calibrated_score)))
 
             # Verdict mapping
             if score < 25:       verdict = 'Likely Human'
@@ -214,10 +220,10 @@ class MurnitinHandler(http.server.SimpleHTTPRequestHandler):
                 'avg': avg_perplexity,
                 'burstiness': burstiness,
                 'sentences': sent_results,
-                'aiSentences': ai_flagged_count,
+                'aiSentences': ai_direct_count + ai_polished_count,
                 'aiDirectCount': ai_direct_count,
                 'aiPolishedCount': ai_polished_count,
-                'aiFlaggedPct': round(ai_flagged_pct, 1),
+                'aiFlaggedPct': round((ai_direct_count + ai_polished_count) / total_sentences * 100, 1),
                 'hasEvasion': has_evasion,
                 'hiddenChars': hidden,
                 'homoglyphs': [h['word'] for h in homo],
@@ -235,7 +241,6 @@ class MurnitinHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
 
     def end_headers(self):
-        # Support CORS for local API queries
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
@@ -247,7 +252,6 @@ class MurnitinHandler(http.server.SimpleHTTPRequestHandler):
 
 # Start Server
 if __name__ == '__main__':
-    # Change working directory to directory of the script to serve static files correctly
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
     
@@ -259,3 +263,4 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             print("\nShutting down server.")
             sys.exit(0)
+
