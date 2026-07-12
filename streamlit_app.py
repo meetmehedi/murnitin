@@ -310,9 +310,10 @@ if "result" not in st.session_state:
     st.session_state.result = None
 if "source_label" not in st.session_state:
     st.session_state.source_label = "User Input"
-# ta_main is the Streamlit widget key — keep it in sync with text_input
-if "ta_main" not in st.session_state:
-    st.session_state["ta_main"] = ""
+# Track the last PDF filename processed to avoid re-extraction on every rerun
+if "pdf_loaded" not in st.session_state:
+    st.session_state.pdf_loaded = None
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -350,25 +351,25 @@ with col_left:
     for i, (label, sample_text) in enumerate(SAMPLES.items()):
         with btn_cols[i]:
             if st.button(label, key=f"sample_{i}", use_container_width=True):
-                # Must sync BOTH keys so the text_area widget reflects the new value
+                # Set text_input — text_area will pick it up via value= on next render
                 st.session_state.text_input = sample_text
-                st.session_state["ta_main"] = sample_text
                 st.session_state.source_label = f"Sample — {label}"
+                st.session_state.pdf_loaded = None  # reset PDF tracker
                 st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Text area — key="ta_main" means Streamlit stores the widget value in
-    # st.session_state["ta_main"]. We also keep text_input in sync.
+    # Text area: NO key= so Streamlit doesn't own the state.
+    # We control it entirely via value=st.session_state.text_input.
     text_input = st.text_area(
         "Paste text to inspect:",
+        value=st.session_state.text_input,
         height=260,
         placeholder="Paste your essay, paper, or any text here for AI detection analysis…",
         label_visibility="collapsed",
-        key="ta_main",
     )
-    # Keep text_input in sync with what the user typed (or what was loaded)
-    st.session_state.text_input = st.session_state["ta_main"]
+    # Sync user edits back to session state
+    st.session_state.text_input = text_input
 
     word_count = len(text_input.split()) if text_input.strip() else 0
     st.caption(f"📝 {word_count} words  ·  {len(text_input)} characters")
@@ -383,24 +384,33 @@ with col_right:
     )
 
     if uploaded_file is not None:
-        with st.spinner("Extracting text from PDF…"):
-            try:
-                from pypdf import PdfReader
-                reader = PdfReader(io.BytesIO(uploaded_file.read()))
-                pdf_text = " ".join(
-                    (page.extract_text() or "") for page in reader.pages
-                )
-                # Sync BOTH state keys so the text_area widget displays the PDF text
-                st.session_state.text_input = pdf_text
-                st.session_state["ta_main"] = pdf_text
-                st.session_state.source_label = f"PDF: {uploaded_file.name} ({len(reader.pages)} pages)"
-                st.success(f"✅ Extracted {len(pdf_text.split())} words from {len(reader.pages)} pages")
-                st.rerun()
-            except ImportError:
-                st.error("pypdf not installed. PDF upload unavailable.")
-            except Exception as e:
-                st.error(f"PDF extraction failed: {e}")
-
+        # Only extract if this is a newly uploaded file (not a re-render of the same file)
+        if st.session_state.pdf_loaded != uploaded_file.name:
+            with st.spinner("Extracting text from PDF…"):
+                try:
+                    from pypdf import PdfReader
+                    reader = PdfReader(io.BytesIO(uploaded_file.read()))
+                    pdf_text = " ".join(
+                        (page.extract_text() or "") for page in reader.pages
+                    )
+                    # Set text_input — text_area picks it up via value= on next render
+                    st.session_state.text_input = pdf_text
+                    st.session_state.source_label = f"PDF: {uploaded_file.name} ({len(reader.pages)} pages)"
+                    st.session_state.pdf_loaded = uploaded_file.name  # mark as processed
+                    st.success(f"✅ Extracted {len(pdf_text.split())} words from {len(reader.pages)} pages")
+                    st.rerun()  # rerun so text_area renders with new value
+                except ImportError:
+                    st.error("pypdf not installed. PDF upload unavailable.")
+                except Exception as e:
+                    st.error(f"PDF extraction failed: {e}")
+        else:
+            # Already processed this file — just show confirmation
+            word_count_pdf = len(st.session_state.text_input.split())
+            st.success(f"✅ {uploaded_file.name} loaded — {word_count_pdf:,} words ready")
+    else:
+        # File was removed — reset tracker
+        if st.session_state.pdf_loaded is not None:
+            st.session_state.pdf_loaded = None
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
