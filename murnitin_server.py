@@ -152,12 +152,17 @@ class MurnitinHandler(http.server.SimpleHTTPRequestHandler):
                     
                     for i, (s, p_ahmed, p_fakespot, p_openai) in enumerate(zip(sentences, preds_ahmed, preds_fakespot, preds_openai)):
                         # Score mappings
+                        # ahmediqbal: label 'AI' = AI-generated
                         score_ahmed = p_ahmed['score'] if p_ahmed['label'] == 'AI' else (1.0 - p_ahmed['score'])
-                        score_fakespot = p_fakespot['score'] if 'label_1' in p_fakespot['label'].upper() else (1.0 - p_fakespot['score'])
+                        # fakespot: label 'AI' = AI-generated (NOT 'LABEL_1')
+                        score_fakespot = p_fakespot['score'] if p_fakespot['label'] == 'AI' else (1.0 - p_fakespot['score'])
+                        # openai-detector: label 'Fake' = AI-generated, 'Real' = human
                         score_openai = p_openai['score'] if p_openai['label'] == 'Fake' else (1.0 - p_openai['score'])
                         
                         # Weighted combined score
                         combined = score_ahmed * 0.50 + score_fakespot * 0.35 + score_openai * 0.15
+                        
+                        print(f"  Sent {i}: ahmed={score_ahmed:.2f} fakespot={score_fakespot:.2f} openai={score_openai:.2f} combined={combined:.2f}")
                         
                         cls = 'human'
                         if combined > 0.60:
@@ -257,6 +262,7 @@ if __name__ == '__main__':
     os.chdir(script_dir)
     
     handler = MurnitinHandler
+    socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", PORT), handler) as httpd:
         print(f"Murnitin Server running at http://localhost:{PORT}/")
         try:
